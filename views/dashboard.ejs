@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Real Time Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
+        }
+
+        body {
+            background-color: var(--light-bg);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background-color: var(--primary-color) !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .navbar-brand {
+            font-weight: 600;
+            color: white !important;
+        }
+
+        .nav-link {
+            color: rgba(255,255,255,0.8) !important;
+            transition: color 0.3s;
+        }
+
+        .nav-link:hover {
+            color: white !important;
+        }
+
+        .dashboard-container {
+            padding: 1.5rem 0;
+        }
+
+        body {
+            overflow-y: hidden;
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header {
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 1rem 1.5rem;
+        }
+
+        .card-title {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        #map {
+            height: calc(100vh - 220px);
+            min-height: 600px;
+            width: 100%;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        #map:hover {
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        }
+
+        .list-group-item {
+            border: none;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            padding: 1rem 1.5rem;
+            transition: background-color 0.3s;
+        }
+
+        .list-group-item:last-child {
+            border-bottom: none;
+        }
+
+        .list-group-item:hover {
+            background-color: rgba(0,0,0,0.02);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background-color: var(--secondary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .location-history {
+            max-height: calc(100vh - 600px);
+            min-height: 200px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
+        .location-history::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .location-history::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .location-history::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+
+        .location-history::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+
+        .location-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .location-item:last-child {
+            border-bottom: none;
+        }
+
+        .location-time {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        .location-coords {
+            font-size: 0.9rem;
+            color: var(--primary-color);
+        }
+
+        .location-name {
+            font-weight: 500;
+            margin-top: 0.25rem;
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-bottom: 1.5rem;
+        }
+
+        .stats-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .stats-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-map-marker-alt me-2"></i>
+                Real Time Tracker
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle me-2"></i>
+                        <%= user.username %>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="/logout">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container dashboard-container">
+        <div class="row">
+            <div class="col-lg-8 col-md-7">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="fas fa-map me-2"></i>Live Map
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="map"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-5">
+                <div class="stats-card">
+                    <div class="stats-number" id="activeUsersCount">0</div>
+                    <div class="stats-label">Active Users</div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="fas fa-users me-2"></i>Active Users
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="activeUsers" class="list-group">
+                            <!-- Active users will be added here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="fas fa-history me-2"></i>Location History
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="location-history" class="location-history">
+                            <% if (user.locationHistory && user.locationHistory.length > 0) { %>
+                                <% user.locationHistory.slice().reverse().forEach((location, index) => { %>
+                                    <div class="location-item">
+                                        <div class="location-time">
+                                            <i class="far fa-clock me-1"></i>
+                                            <%= new Date(location.timestamp).toLocaleString() %>
+                                        </div>
+                                        <div class="location-name">
+                                            <i class="fas fa-map-marker-alt me-1"></i>
+                                            <%= location.locationName || 'Unknown Location' %>
+                                        </div>
+                                        <div class="location-coords">
+                                            <i class="fas fa-globe me-1"></i>
+                                            <%= location.latitude.toFixed(6) %>, <%= location.longitude.toFixed(6) %>
+                                        </div>
+                                    </div>
+                                <% }); %>
+                            <% } else { %>
+                                <div class="text-center py-4 text-muted">
+                                    <i class="fas fa-history fa-2x mb-2"></i>
+                                    <p>No location history available</p>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const map = L.map('map').setView([0, 0], 2);
+        const markers = {};
+        const userMarkers = {};
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Handle active users list
+        socket.on('active-users', (users) => {
+            const activeUsersList = document.getElementById('activeUsers');
+            const activeUsersCount = document.getElementById('activeUsersCount');
+            activeUsersList.innerHTML = '';
+            activeUsersCount.textContent = users.length;
+            
+            users.forEach(user => {
+                if (user.username) {
+                    const userElement = document.createElement('div');
+                    userElement.className = 'list-group-item';
+                    userElement.innerHTML = `
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                ${user.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <strong>${user.username}</strong>
+                                ${user.locationName ? 
+                                    `<div class="text-muted small mt-1">
+                                        <i class="fas fa-map-marker-alt me-1"></i>${user.locationName}
+                                    </div>` : 
+                                    `<div class="text-muted small mt-1">
+                                        <i class="fas fa-map-marker-alt me-1"></i>Location not available
+                                    </div>`
+                                }
+                            </div>
+                        </div>
+                    `;
+                    activeUsersList.appendChild(userElement);
+                }
+            });
+        });
+
+        // Get user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    socket.emit('send-location', { latitude, longitude });
+                    
+                    // Center map on user's location
+                    map.setView([latitude, longitude], 13);
+                    
+                    // Update user's marker
+                    if (userMarkers['current']) {
+                        userMarkers['current'].setLatLng([latitude, longitude]);
+                    } else {
+                        userMarkers['current'] = L.marker([latitude, longitude], {
+                            icon: L.divIcon({
+                                className: 'user-marker',
+                                html: '<i class="fas fa-user"></i>',
+                                iconSize: [30, 30]
+                            })
+                        }).addTo(map)
+                        .bindPopup('Your Location');
+                    }
+                },
+                (error) => {
+                    console.error('Error getting location:', error);
+                },
+                { enableHighAccuracy: true }
+            );
+        }
+
+        // Handle location updates from other users
+        socket.on('receive-location', (data) => {
+            const { id, latitude, longitude, username, userId } = data;
+            
+            if (markers[id]) {
+                markers[id].setLatLng([latitude, longitude]);
+            } else {
+                markers[id] = L.marker([latitude, longitude], {
+                    icon: L.divIcon({
+                        className: 'other-user-marker',
+                        html: '<i class="fas fa-user"></i>',
+                        iconSize: [30, 30]
+                    })
+                }).addTo(map)
+                .bindPopup(username || 'User ' + id);
+            }
+        });
+
+        // Handle user disconnections
+        socket.on('user-disconnected', (id) => {
+            if (markers[id]) {
+                map.removeLayer(markers[id]);
+                delete markers[id];
+            }
+        });
+    </script>
+</body>
+</html> 
