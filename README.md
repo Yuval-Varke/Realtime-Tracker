@@ -47,9 +47,17 @@ npm install
 Create a `.env` file in the project root and add the following:
 
 ```
+# MongoDB Connection
+MONGODB_URI=your_db_url
+
+# Session Configuration
+SESSION_SECRET=your-super-secret-key-change-this-in-production
+
+# Server Configuration
 PORT=5000
-MONGO_URI=your_mongodb_connection_string
-JWT_SECRET=your_jwt_secret_key
+
+# Application Settings
+NODE_ENV=development
 ```
 
 ### 4. Start the Server
